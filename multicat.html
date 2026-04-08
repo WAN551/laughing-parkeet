@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>遮字猜猜看</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 8px;
+        }
+        .question-num { font-size: 18px; opacity: 0.9; }
+
+        /* 分类选择 */
+        .cat-select { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+        .cat-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        .cat-btn:hover { transform: translateY(-3px); }
+        .cat-idiom { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .cat-tool { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .cat-nature { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+        .cat-animal { background: linear-gradient(135deg, #fa709a, #fee140); }
+        .cat-mix { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+
+        .game-area {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            min-height: 120px;
+        }
+        .char-container {
+            position: relative;
+            width: 90px;
+            height: 110px;
+        }
+        .char {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 52px;
+            font-weight: bold;
+            color: #333;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .grid {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 80px;
+            height: 100px;
+            background: linear-gradient(145deg, #FFD700, #FFA500);
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: rgba(255,255,255,0.6);
+            border: 3px solid #E69400;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+        }
+        .grid.hidden { display: none; }
+
+        /* 答案区 */
+        .answer-area {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 15px;
+            max-width: 500px;
+        }
+        .ans-char {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            border: 2px solid #ddd;
+        }
+        .ans-char.used {
+            opacity: 0.3;
+            cursor: default;
+        }
+        .user-ans {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .user-slot {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.25);
+            border: 2px dashed rgba(255,255,255,0.5);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+        .user-slot.filled {
+            background: rgba(255,255,255,0.5);
+            border-style: solid;
+            border-color: white;
+            cursor: pointer;
+        }
+
+        .controls { display: flex; gap: 16px; }
+        .btn {
+            padding: 12px 32px;
+            font-size: 18px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn-green { background: #00C853; }
+        .btn-orange { background: #FF6D00; }
+        .btn-blue { background: #2196F3; }
+
+        .progress {
+            display: flex;
+            gap: 6px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 600px;
+        }
+        .progress-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+        }
+        .progress-dot.active { background: white; transform: scale(1.3); }
+        .progress-dot.done { background: #4CAF50; }
+
+        .complete-msg {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: white;
+            padding: 30px 50px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+        .complete-msg.show { transform: translate(-50%, -50%) scale(1); }
+        .complete-msg h2 { color: #4CAF50; font-size: 28px; margin-bottom: 10px; }
+
+        .result-bar {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            min-height: 30px;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+        .result-bar.correct { color: #69F0AE; }
+        .result-bar.wrong { color: #FF5252; }
+
+        #gameWrapper { transition: opacity 0.3s; }
+        .hidden-el { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="title">遮字猜猜看</div>
+    <div class="question-num" id="questionNum">选择分类开始游戏</div>
+</div>
+
+<!-- 分类选择 -->
+<div class="cat-select" id="catSelect">
+    <button class="cat-btn cat-idiom" onclick="startGame('idiom')">成语</button>
+    <button class="cat-btn cat-tool" onclick="startGame('tool')">生活工具</button>
+    <button class="cat-btn cat-nature" onclick="startGame('nature')">自然</button>
+    <button class="cat-btn cat-animal" onclick="startGame('animal')">动物</button>
+    <button class="cat-btn cat-mix" onclick="startGame('mix')">随机混合</button>
+</div>
+
+<div id="gameWrapper">
+    <div class="result-bar" id="resultBar"></div>
+
+    <div class="game-area" id="gameArea"></div>
+
+    <!-- 打乱的字块 -->
+    <div class="answer-area" id="ansArea"></div>
+
+    <!-- 用户答案区 -->
+    <div class="user-ans" id="userAns"></div>
+
+    <div class="controls">
+        <button class="btn btn-orange" onclick="checkAnswer()">确认答案</button>
+        <button class="btn btn-blue" onclick="clearAnswer()">清除重选</button>
+        <button class="btn btn-green" onclick="nextQuestion()">下一题</button>
+    </div>
+
+    <div class="progress" id="progress"></div>
+</div>
+
+<div class="complete-msg" id="completeMsg">
+    <h2>太棒了！</h2>
+    <p id="finalScore"></p>
+    <button class="btn btn-green" style="margin-top:15px;" onclick="resetGame()">再玩一次</button>
+</div>
+
+<script>
+// ==================== 题库 ====================
+var DB = {
+    idiom: [
+        '一心一意','三心二意','四面八方','五颜六色','七上八下',
+        '画龙点睛','守株待兔','亡羊补牢','自相矛盾','刻舟求剑',
+        '叶公好龙','狐假虎威','掩耳盗铃','买椟还珠','对牛弹琴',
+        '井底之蛙','马到成功','龙腾虎跃','鸡飞狗跳','虎头蛇尾',
+        '鹤立鸡群','兔死狐悲','惊弓之鸟','如鱼得水','愚公移山'
+    ],
+    tool: [
+        '铅笔','橡皮','尺子','书包','课桌','椅子','黑板','粉笔',
+        '电脑','键盘','鼠标','手机','电视','冰箱','空调','风扇',
+        '雨伞','水杯','剪刀','钥匙','闹钟','台灯','牙刷','毛巾','拖鞋'
+    ],
+    nature: [
+        '太阳','月亮','星星','白云','蓝天','大海','高山','河流',
+        '森林','草原','沙漠','雪山','彩虹','闪电','雷声','春风',
+        '秋雨','冬雪','花朵','小草','大树','落叶','露水','冰霜','雾气'
+    ],
+    animal: [
+        '狮子','老虎','大象','熊猫','猴子','兔子','长颈鹿','斑马',
+        '企鹅','海豚','鲸鱼','鲨鱼','蝴蝶','蜜蜂','蚂蚁','蜘蛛',
+        '鹦鹉','猫头鹰','孔雀','天鹅','鳄鱼','海龟','蜗牛','蚯蚓','蜻蜓']
+};
+
+// 游戏状态
+var pool = [];       // 当前题库
+var qIndex = 0;      // 当前题目索引
+var curWord = '';     // 当前词语
+var userAns = [];     // 用户已选的答案
+var score = 0;
+
+// 开始游戏
+function startGame(cat) {
+    if (cat === 'mix') {
+        pool = DB.idiom.concat(DB.tool).concat(DB.nature).concat(DB.animal);
+    } else {
+        pool = DB[cat].slice();
+    }
+    // 打乱顺序
+    pool.sort(function(){return Math.random()-0.5});
+    qIndex = 0;
+    score = 0;
+
+    document.getElementById('catSelect').style.display = 'none';
+    document.getElementById('gameWrapper').style.display = 'block';
+
+    loadQ();
+}
+
+// 加载题目
+function loadQ() {
+    if (qIndex >= pool.length) {
+        showComplete();
+        return;
+    }
+    curWord = pool[qIndex];
+    userAns = [];
+    document.getElementById('questionNum').textContent = '第 ' + (qIndex+1) + ' 题 / 共 ' + pool.length + ' 题';
+    document.getElementById('resultBar').textContent = '';
+    document.getElementById('resultBar').className = 'result-bar';
+    document.getElementById('nextBtn').style.display = 'none';
+
+    renderGrids();
+    renderAnsChars();
+    renderUserSlots();
+    updateProgress();
+}
+
+// 渲染遮字格子 (每个字一个格子)
+function renderGrids() {
+    var area = document.getElementById('gameArea');
+    area.innerHTML = '';
+    for (var i = 0; i < curWord.length; i++) {
+        var con = document.createElement('div');
+        con.className = 'char-container';
+
+        var chEl = document.createElement('div');
+        chEl.className = 'char';
+        chEl.textContent = curWord[i];
+
+        var grid = document.createElement('div');
+        grid.className = 'grid';
+        grid.textContent = '?';
+        grid.onclick = function() {
+            if (!this.classList.contains('hidden')) {
+                this.classList.add('hidden');
+            }
+        };
+
+        con.appendChild(chEl);
+        con.appendChild(grid);
+        area.appendChild(con);
+    }
+}
+
+// 渲染打乱的答案字块
+function renderAnsChars() {
+    var area = document.getElementById('ansArea');
+    area.innerHTML = '';
+    var chars = curWord.split('');
+    chars.sort(function(){return Math.random()-0.5});
+
+    for (var i = 0; i < chars.length; i++) {
+        (function(ch, idx) {
+            var el = document.createElement('div');
+            el.className = 'ans-char';
+            el.id = 'ans_' + idx;
+            el.textContent = ch;
+            el.onclick = function() {
+                if (this.classList.contains('used')) return;
+                selectChar(this, ch, idx);
+            };
+            area.appendChild(el);
+        })(chars[i], i);
+    }
+}
+
+// 渲染用户答案槽位
+function renderUserSlots() {
+    var area = document.getElementById('userAns');
+    area.innerHTML = '';
+    for (var i = 0; i < curWord.length; i++) {
+        var slot = document.createElement('div');
+        slot.className = 'user-slot';
+        slot.id = 'slot_' + i;
+        (function(idx) {
+            slot.onclick = function() {
+                unselectChar(idx);
+            };
+        })(i);
+        area.appendChild(slot);
+    }
+}
+
+// 选择字块
+function selectChar(el, ch, ansIdx) {
+    if (userAns.length >= curWord.length) return;
+    var slotIdx = userAns.length;
+    userAns.push({ch: ch, ansIdx: ansIdx, el: el});
+
+    el.classList.add('used');
+
+    var slot = document.getElementById('slot_' + slotIdx);
+    slot.textContent = ch;
+    slot.classList.add('filled');
+}
+
+// 取消选中
+function unselectChar(slotIdx) {
+    if (slotIdx >= userAns.length) return;
+    var item = userAns[slotIdx];
+    item.el.classList.remove('used');
+
+    userAns.splice(slotIdx, 1);
+
+    // 重新渲染槽位
+    for (var i = slotIdx; i < curWord.length; i++) {
+        var s = document.getElementById('slot_' + i);
+        if (i < userAns.length) {
+            s.textContent = userAns[i].ch;
+            s.classList.add('filled');
+        } else {
+            s.textContent = '';
+            s.classList.remove('filled');
+        }
+    }
+}
+
+// 清除答案
+function clearAnswer() {
+    for (var i = 0; i < userAns.length; i++) {
+        if (userAns[i] && userAns[i].el) {
+            userAns[i].el.classList.remove('used');
+        }
+    }
+    userAns = [];
+    renderUserSlots();
+}
+
+// 检查答案
+function checkAnswer() {
+    if (userAns.length !== curWord.length) {
+        flashResult('还没填完哦！请选择全部文字', false);
+        return;
+    }
+    var ans = '';
+    for (var i = 0; i < userAns.length; i++) {
+        ans += userAns[i].ch;
+    }
+    if (ans === curWord) {
+        score += 10;
+        flashResult('回答正确！+' + '10分', true);
+        revealAll();
+        document.getElementById('nextBtn').style.display = 'inline-block';
+    } else {
+        flashResult('不对哦，再想想看~', false);
+        clearAnswer();
+    }
+}
+
+function flashResult(msg, ok) {
+    var bar = document.getElementById('resultBar');
+    bar.textContent = msg;
+    bar.className = ok ? 'result-bar correct' : 'result-bar wrong';
+}
+
+function revealAll() {
+    var grids = document.querySelectorAll('.grid');
+    for (var i = 0; i < grids.length; i++) {
+        grids[i].classList.add('hidden');
+    }
+}
+
+function nextQuestion() {
+    qIndex++;
+    if (qIndex >= pool.length) {
+        showComplete();
+        return;
+    }
+    loadQ();
+}
+
+function updateProgress() {
+    var el = document.getElementById('progress');
+    el.innerHTML = '';
+    for (var i = 0; i < pool.length; i++) {
+        (function(idx) {
+            var d = document.createElement('div');
+            d.className = 'progress-dot';
+            d.onclick = function() { showQ(idx); };
+            if (idx < qIndex) d.className += ' done';
+            else if (idx === qIndex) d.className += ' active';
+            el.appendChild(d);
+        })(i);
+    }
+}
+
+function showQ(idx) {
+    if (idx < pool.length && idx <= qIndex + 1) {
+        qIndex = idx;
+        loadQ();
+    }
+}
+
+function showComplete() {
+    document.getElementById('gameWrapper').style.display = 'none';
+    document.getElementById('completeMsg').classList.add('show');
+    var pct = Math.round((score / (pool.length * 10)) * 100);
+    var msgs = ['继续加油！', '还不错哦！', '很厉害！', '太牛了！'];
+    var idx = pct < 40 ? 0 : (pct < 70 ? 1 : (pct < 90 ? 2 : 3));
+    document.getElementById('finalScore').textContent = '得分: ' + score + '/' + (pool.length * 10) + ' (' + pct + '%) ' + msgs[idx];
+}
+
+function resetGame() {
+    document.getElementById('completeMsg').classList.remove('show');
+    document.getElementById('catSelect').style.display = 'flex';
+    document.getElementById('gameWrapper').style.display = 'block';
+}
+</script>
+
+</body>
+</html>
