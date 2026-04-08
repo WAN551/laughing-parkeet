@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>遮字猜猜看</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 15px;
+        }
+        .title {
+            font-size: 30px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            margin-bottom: 6px;
+        }
+        .question-num { font-size: 16px; opacity: 0.85; }
+
+        /* 难度选择 */
+        .diff-select { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
+        .diff-btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+        }
+        .d1 { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .d2 { background: linear-gradient(135deg, #56ab2f, #a8e063); }
+        .d3 { background: linear-gradient(135deg, #f7971e, #ffd200); }
+        .d4 { background: linear-gradient(135deg, #f85032, #e73827); }
+        .d5 { background: linear-gradient(135deg, #8E2DE2, #4A00E0); }
+
+        /* 游戏区 - 3x3 大格子 */
+        .game-area {
+            position: relative;
+            width: 210px;
+            height: 210px;
+            margin-bottom: 12px;
+        }
+        .word-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 56px;
+            font-weight: bold;
+            color: white;
+            z-index: 1;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.5);
+            letter-spacing: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 200px;
+            height: 80px;
+        }
+
+        /* 3x3 小格 */
+        .big-grid {
+            position: absolute;
+            width: 66px;
+            height: 66px;
+            cursor: pointer;
+            z-index: 2;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: rgba(255,255,255,0.5);
+            border: 2px solid rgba(255,215,0,0.6);
+            transition: opacity 0.2s;
+        }
+        .bg1 { background: linear-gradient(145deg, #FFD700, #FFA500); }
+        .bg2 { background: linear-gradient(145deg, #FF6B6B, #EE5A24); }
+        .bg3 { background: linear-gradient(145deg, #4ECDCA, #44BD9E); }
+        .bg4 { background: linear-gradient(145deg, #A55EEA, #8854D0); }
+        .bg5 { background: linear-gradient(145deg, #5352ED, #3331C4); }
+        .big-grid.hidden { opacity: 0; pointer-events: none; }
+        .big-grid:hover:not(.hidden) { opacity: 0.85; }
+
+        .controls { display: flex; gap: 14px; }
+        .btn {
+            padding: 10px 28px;
+            font-size: 17px;
+            border: none;
+            border-radius: 22px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .btn-green { background: #00C853; }
+        .btn-orange { background: #FF6D00; }
+
+        .progress {
+            display: flex;
+            gap: 5px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 400px;
+        }
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            cursor: pointer;
+        }
+        .progress-dot.active { background: white; transform: scale(1.3); }
+        .progress-dot.done { background: #4CAF50; }
+
+        .complete-msg {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: white;
+            padding: 30px 45px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+        .complete-msg.show { transform: translate(-50%, -50%) scale(1); }
+        .complete-msg h2 { color: #4CAF50; font-size: 26px; margin-bottom: 10px; }
+
+        #catSelect { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="title">遮字猜猜看 (大格子)</div>
+    <div class="question-num" id="questionNum">选择难度开始游戏</div>
+</div>
+
+<div class="diff-select" id="diffSelect">
+    <button class="diff-btn d1" onclick="startGame(1)">初级 4字</button>
+    <button class="diff-btn d2" onclick="startGame(2)">中级 4字</button>
+    <button class="diff-btn d3" onclick="startGame(3)">高级 4字</button>
+    <button class="diff-btn d4" onclick="startGame(4)">专家 4字</button>
+    <button class="diff-btn d5" onclick="startGame(5)">地狱 4字</button>
+</div>
+
+<div class="game-area" id="gameArea">
+    <div class="word-display" id="wordDisplay"></div>
+</div>
+
+<div class="controls" id="controls" style="visibility:hidden;">
+    <button class="btn btn-orange" onclick="prevQuestion()">上一题</button>
+    <button class="btn btn-green" onclick="nextQuestion()">下一题</button>
+</div>
+
+<div class="progress" id="progress"></div>
+
+<div class="complete-msg" id="completeMsg">
+    <h2>太棒了！</h2>
+    <p id="finalScore"></p>
+    <button class="btn btn-green" style="margin-top:12px;" onclick="resetGame()">再玩一次</button>
+</div>
+
+<script>
+// ==================== 题库（按难度）====================
+var LEVELS = {
+    // 初级：常用成语
+    1: [
+        '一心一意','三心二意','四面八方','五颜六色','七上八下',
+        '九牛一虎','十全十美','千方百计','万众一心','人山人海',
+        '风和日丽','鸟语花香','春暖花开','花好月圆','年年有余'
+    ],
+    // 中级：常见成语
+    2: [
+        '画龙点睛','守株待兔','亡羊补牢','自相矛盾','刻舟求剑',
+        '叶公好龙','狐假虎威','掩耳盗铃','买椟还珠','对牛弹琴',
+        '井底之蛙','马到成功','龙腾虎跃','鸡飞狗跳','虎头蛇尾',
+        '鹤立鸡群','惊弓之鸟','如鱼得水','愚公移山','半途而废'
+    ],
+    // 高级
+    3: [
+        '画蛇添足','杯弓蛇影','滥竽充数','拔苗助长','精卫填海',
+        '盲人摸象','破釜沉舟','卧薪尝胆','纸上谈兵','草木皆兵',
+        '四面楚歌','望梅止渴','负荆请罪','指鹿为马','邯郸学步',
+        '叶落归根','水滴石穿','铁杵成针','胸有成竹','一鸣惊人'
+    ],
+    // 专家
+    4: [
+        '风声鹤唳','草木皆兵','围魏救赵','声东击西','暗渡陈仓',
+        '釜底抽薪','打草惊蛇','调虎离山','欲擒故纵','抛砖引玉',
+        '借刀杀人','趁火打劫','关门捉贼','远交近攻','假道伐虢',
+        '偷梁换柱','指桑骂槐','上屋抽梯','树上开花','反客为主'
+    ],
+    // 地狱：难认成语
+    5: [
+        '醍醐灌顶','栉风沐雨','筚路蓝缕','未雨绸缪','厉兵秣马',
+        '韦编三绝','夙兴夜寐','宵衣旰食','革故鼎新','励精图治',
+        '锲而不舍','孜孜不倦','兢兢业业','一丝不苟','精益求精',
+        '见贤思齐','闻过则喜','虚怀若谷','厚积薄发','行成于思']
+    ]
+};
+
+var pool = [];
+var currentIdx = 0;
+
+function startGame(level) {
+    pool = LEVELS[level].slice();
+    pool.sort(function(){return Math.random()-0.5});
+    currentIdx = 0;
+
+    document.getElementById('diffSelect').style.display = 'none';
+    document.getElementById('controls').style.visibility = 'visible';
+
+    showQuestion(currentIdx);
+}
+
+function showQuestion(idx) {
+    if (idx >= pool.length) {
+        document.getElementById('completeMsg').classList.add('show');
+        var total = pool.length * 10;
+        document.getElementById('finalScore').textContent = '完成 ' + pool.length + ' 题！共 ' + total + ' 分';
+        return;
+    }
+    currentIdx = idx;
+    var word = pool[idx];
+
+    document.getElementById('questionNum').textContent = '第 ' + (idx+1) + ' 题 / 共 ' + pool.length + ' 题';
+
+    // 显示词语
+    document.getElementById('wordDisplay').innerHTML = '';
+    for (var i = 0; i < word.length; i++) {
+        var sp = document.createElement('span');
+        sp.textContent = word[i];
+        sp.style.marginRight = i === 0 ? '0' : '8px';
+        document.getElementById('wordDisplay').appendChild(sp);
+    }
+
+    // 创建 3x3 格子
+    var area = document.getElementById('gameArea');
+    // 移除旧的格子（保留 wordDisplay）
+    var oldGrids = area.querySelectorAll('.big-grid');
+    for (var g = 0; g < oldGrids.length; g++) {
+        area.removeChild(oldGrids[g]);
+    }
+
+    var positions = [
+        [5, 5],   [72, 5],   [139, 5],
+        [5, 72],   [72, 72],  [139, 72],
+        [5, 139],  [72, 139], [139, 139]
+    ];
+
+    for (var i = 0; i < 9; i++) {
+        (function(pos) {
+            var grid = document.createElement('div');
+            grid.className = 'big-grid bg' + (Math.floor(Math.random()*5)+1);
+            grid.style.left = pos[0] + 'px';
+            grid.style.top = pos[1] + 'px';
+            grid.textContent = '?';
+            grid.onclick = function() {
+                if (!grid.classList.contains('hidden')) {
+                    grid.classList.add('hidden');
+                }
+            };
+            area.appendChild(grid);
+        })(positions[i]);
+    }
+
+    renderProgress();
+}
+
+function nextQuestion() {
+    if (currentIdx < pool.length - 1) {
+        showQuestion(currentIdx + 1);
+    } else {
+        showQuestion(pool.length);
+    }
+}
+
+function prevQuestion() {
+    if (currentIdx > 0) {
+        showQuestion(currentIdx - 1);
+    }
+}
+
+function renderProgress() {
+    var el = document.getElementById('progress');
+    el.innerHTML = '';
+    for (var i = 0; i < pool.length; i++) {
+        (function(idx) {
+            var d = document.createElement('div');
+            d.className = 'progress-dot';
+            d.onclick = function() { showQuestion(idx); };
+            if (i < currentIdx) d.className += ' done';
+            else if (i === currentIdx) d.className += ' active';
+            el.appendChild(d);
+        })(i);
+    }
+}
+
+function resetGame() {
+    document.getElementById('completeMsg').classList.remove('show');
+    document.getElementById('diffSelect').style.display = 'flex';
+    document.getElementById('controls').style.visibility = 'hidden';
+}
+</script>
+
+</body>
+</html>
