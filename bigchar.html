@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>遮字猜猜看</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .header { text-align: center; color: white; margin-bottom: 18px; }
+        .title { font-size: 32px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); margin-bottom: 6px; }
+        .question-num { font-size: 17px; opacity: 0.9; }
+
+        /* 分类选择 */
+        .cat-select { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
+        .cat-btn {
+            padding: 10px 20px; border: none; border-radius: 22px;
+            font-size: 15px; font-weight: bold; cursor: pointer; color: white;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+        }
+        .c1 { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .c2 { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .c3 { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+        .c4 { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+
+        .game-area { display: flex; gap: 14px; margin-bottom: 18px; }
+        .char-box {
+            position: relative; width: 110px; height: 130px; cursor: pointer;
+        }
+        .big-char {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 64px; font-weight: bold;
+            color: #333; z-index: 1;
+        }
+        .cover-grid {
+            position: absolute; top: 4px; left: 4px;
+            width: 102px; height: 122px;
+            border-radius: 10px;
+            cursor: pointer; z-index: 2;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 42px; color: rgba(255,255,255,0.5);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+        .cg1 { background: linear-gradient(145deg, #FFD700, #FFA500); border: 3px solid #E69400; }
+        .cg2 { background: linear-gradient(145deg, #FF6B6B, #EE5A24); border: 3px solid #D4451A; }
+        .cg3 { background: linear-gradient(145deg, #4ECDCA, #44BD9E); border: 3px solid #35A88C; }
+        .cover-grid.hidden { opacity: 0; pointer-events: none; }
+
+        .controls { display: flex; gap: 16px; }
+        .btn {
+            padding: 11px 30px; font-size: 18px; border: none;
+            border-radius: 24px; cursor: pointer; font-weight: bold; color: white;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+        }
+        .btn-green { background: #00C853; }
+        .btn-orange { background: #FF6D00; }
+
+        .progress { display: flex; gap: 6px; margin-top: 15px; flex-wrap: wrap; justify-content: center; max-width: 500px; }
+        .progress-dot { width: 13px; height: 13px; border-radius: 50%; background: rgba(255,255,255,0.3); cursor: pointer; }
+        .progress-dot.active { background: white; transform: scale(1.3); }
+        .progress-dot.done { background: #4CAF50; }
+
+        .complete-msg {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: white; padding: 30px 45px; border-radius: 15px;
+            text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); z-index: 100;
+        }
+        .complete-msg.show { transform: translate(-50%, -50%) scale(1); }
+        .complete-msg h2 { color: #4CAF50; font-size: 26px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="title">遮字猜猜看 (大字)</div>
+    <div class="question-num" id="questionNum">选择分类开始</div>
+</div>
+
+<div class="cat-select" id="catSelect">
+    <button class="cat-btn c1" onclick="start('idiom')">成语</button>
+    <button class="cat-btn c2" onclick="start('tool')">生活工具</button>
+    <button class="cat-btn c3" onclick="start('nature')">自然</button>
+    <button class="cat-btn c4" onclick="start('animal')">动物</button>
+</div>
+
+<div class="game-area" id="gameArea"></div>
+
+<div class="controls">
+    <button class="btn btn-orange" onclick="prev()">上一题</button>
+    <button class="btn btn-green" onclick="next()">下一题</button>
+</div>
+
+<div class="progress" id="progress"></div>
+
+<div class="complete-msg" id="completeMsg">
+    <h2>太棒了！</h2>
+    <p id="finalMsg"></p>
+    <button class="btn btn-green" style="margin-top:12px;" onclick="resetGame()">再来一次</button>
+</div>
+
+<script>
+var DB = {
+    idiom: ['一心一意','三心二意','四面八方','五颜六色','画龙点睛','守株待兔','亡羊补牢','自相矛盾','刻舟求剑','叶公好龙','狐假虎威','掩耳盗铃','对牛弹琴','井底之蛙','马到成功'],
+    tool: ['铅笔','橡皮','尺子','书包','课桌','椅子','电脑','键盘','手机','电视','冰箱','空调','雨伞','水杯','剪刀','钥匙','闹钟','台灯','牙刷','毛巾'],
+    nature: ['太阳','月亮','星星','白云','蓝天','大海','高山','河流','森林','草原','彩虹','闪电','春风','秋雨','冬雪','花朵','小草','大树','落叶','露水'],
+    animal: ['狮子','老虎','大象','熊猫','猴子','兔子','长颈鹿','斑马','企鹅','海豚','鲸鱼','鲨鱼','蝴蝶','蜜蜂','蚂蚁','鹦鹉','孔雀','天鹅','鳄鱼','海龟']
+};
+
+var pool = [];
+var idx = 0;
+
+function start(cat) {
+    pool = DB[cat].slice();
+    pool.sort(function(){return Math.random()-0.5});
+    idx = 0;
+    document.getElementById('catSelect').style.display = 'none';
+    showQ(idx);
+}
+
+function showQ(i) {
+    if (i >= pool.length) {
+        document.getElementById('completeMsg').classList.add('show');
+        document.getElementById('finalMsg').textContent = '完成了 ' + pool.length + ' 道题目！';
+        return;
+    }
+    idx = i;
+    var word = pool[i];
+    document.getElementById('questionNum').textContent = '第 ' + (i+1) + ' 题 / 共 ' + pool.length + ' 题';
+
+    var area = document.getElementById('gameArea');
+    area.innerHTML = '';
+    for (var c = 0; c < word.length; c++) {
+        (function(ch, colorIdx) {
+            var box = document.createElement('div');
+            box.className = 'char-box';
+
+            var chEl = document.createElement('div');
+            chEl.className = 'big-char';
+            chEl.textContent = ch;
+
+            var cover = document.createElement('div');
+            cover.className = 'cover-grid cg' + ((colorIdx % 3) + 1);
+            cover.textContent = '?';
+            cover.onclick = function() {
+                if (!cover.classList.contains('hidden')) {
+                    cover.classList.add('hidden');
+                }
+            };
+
+            box.appendChild(chEl);
+            box.appendChild(cover);
+            area.appendChild(box);
+        })(word[c], c);
+    }
+
+    renderProg();
+}
+
+function next() { showQ(idx + 1); }
+function prev() { if (idx > 0) showQ(idx - 1); }
+
+function renderProg() {
+    var el = document.getElementById('progress');
+    el.innerHTML = '';
+    for (var i = 0; i < pool.length; i++) {
+        (function(ii) {
+            var d = document.createElement('div');
+            d.className = 'progress-dot';
+            d.onclick = function() { showQ(ii); };
+            if (ii < idx) d.className += ' done';
+            else if (ii === idx) d.className += ' active';
+            el.appendChild(d);
+        })(i);
+    }
+}
+
+function resetGame() {
+    document.getElementById('completeMsg').classList.remove('show');
+    document.getElementById('catSelect').style.display = 'flex';
+}
+</script>
+
+</body>
+</html>
