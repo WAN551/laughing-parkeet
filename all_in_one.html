@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>趣味猜词游戏乐园</title>
+</head>
+<body style="background:#1a1a2e; color:#fff; font-family:Microsoft YaHei,Arial,sans-serif; margin:0; padding:15px;">
+
+<div id="nav" style="text-align:center; background:#667eea; padding:18px 12px; border-radius:10px; margin-bottom:15px;">
+<h1 style="font-size:26px; margin-bottom:8px;">[ 趣味猜词游戏乐园 ]</h1>
+<table cellpadding="5" cellspacing="3" align="center" style="margin-top:8px;">
+<tr>
+<td><button onclick="switchGame('idiom4')" style="padding:8px 14px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#FF6B6B; color:white; font-weight:bold;">遮字猜成语</button></td>
+<td><button onclick="switchGame('multi')" style="padding:8px 14px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#ffa502; color:white; font-weight:bold;">多分类</button></td>
+<td><button onclick="switchGame('biggrid')" style="padding:8px 14px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#2ed573; color:white; font-weight:bold;">大格子版</button></td>
+<td><button onclick="switchGame('bigchar')" style="padding:8px 14px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#1e90ff; color:white; font-weight:bold;">大字版</button></td>
+</tr>
+<tr>
+<td><button onclick="switchGame('word')" style="padding:8px 14px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#a55eea; color:white; font-weight:bold;">英文单词</button></td>
+<td><button onclick="switchGame('wordpro')" style="padding:8px 14px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#fd79a8; color:white; font-weight:bold;">英文Pro</button></td>
+</tr>
+</table>
+</div>
+
+<div id="gameContainer"></div>
+
+<script>
+var GAME_DATA = {
+    idiom4: {
+        title: '遮字猜成语',
+        bg: '#667eea',
+        items: [
+            "对牛弹琴","马到成功","画蛇添足","守株待兔",
+            "亡羊补牢","狐假虎威","杯弓蛇影","叶公好龙",
+            "精卫填海","愚公移山","盲人摸象","刻舟求剑",
+            "掩耳盗铃","拔苗助长","滥竽充数","买椟还珠"
+        ]
+    },
+    multi: {
+        title: '多分类猜词',
+        bg: '#e17055',
+        items: [
+            "画蛇添足","守株待兔","亡羊补牢","狐假虎威",
+            "铅笔","橡皮","尺子","书包",
+            "太阳","月亮","星星","彩虹",
+            "老虎","狮子","大象","猴子"
+        ]
+    },
+    biggrid: {
+        title: '大格子猜词',
+        bg: '#00b894',
+        items: [
+            "一心一意","三心二意","四面八方","五湖四海",
+            "七上八下","十全十美","百发百中","千军万马"
+        ]
+    },
+    bigchar: {
+        title: '大字猜词',
+        bg: '#0984e3',
+        items: [
+            "龙飞凤舞","风调雨顺","国泰民安","心想事成",
+            "万事如意","步步高升","前程似锦","鹏程万里"
+        ]
+    },
+    word: {
+        title: 'Word Guess',
+        bg: '#6c5ce7',
+        items: [
+            "APPLE","BANANA","CAT","DOG",
+            "ELEPHANT","FLOWER","GARDEN","HAPPY",
+            "ISLAND","JUNGLE","KITE","LION",
+            "MONKEY","NIGHT","ORANGE","PENCIL"
+        ]
+    },
+    wordpro: {
+        title: 'Word Guess Pro',
+        bg: '#e84393',
+        items: [
+            "RAINBOW","SUNSHINE","TEACHER","UNIVERSE",
+            "VICTORY","WATERFALL","XYLOPHONE","YESTERDAY",
+            "ZEBRA","ADVENTURE","BEAUTIFUL","CHOCOLATE",
+            "DOLPHIN","ELEPHANT","FIREWORKS","GALAXY"
+        ]
+    }
+};
+
+var currentGame = 'idiom4';
+var currentIdx = 0;
+var revealedCount = 0;
+var currentItems = [];
+
+function switchGame(gameId) {
+    currentGame = gameId;
+    currentIdx = 0;
+    var game = GAME_DATA[gameId];
+    if (!game) return;
+    currentItems = game.items;
+
+    document.getElementById('gameContainer').innerHTML = '';
+
+    var container = document.createElement('div');
+    container.id = 'gameArea';
+    container.style.cssText = 'background:' + game.bg + ';border-radius:16px;padding:25px 20px;text-align:center;min-height:400px;';
+
+    container.innerHTML =
+        '<h2 style="font-size:28px;margin-bottom:5px;color:white;">[ ' + game.title + ' ]</h2>' +
+        '<p id="questionNum" style="font-size:17px;margin-bottom:20px;color:white;">第 1 题 / 共 ' + currentItems.length + ' 题</p>' +
+        '<div id="charArea"></div>' +
+        '<div id="progress" style="margin-bottom:20px;"></div>' +
+        '<div style="margin-top:15px;">' +
+        '<button onclick="prevQ()" style="padding:12px 30px;font-size:18px;border:none;border-radius:22px;background:#FF6D00;color:white;font-weight:bold;cursor:pointer;margin:5px;">&lt; 上一题</button>' +
+        '&nbsp;&nbsp;' +
+        '<button onclick="nextQ()" style="padding:12px 30px;font-size:18px;border:none;border-radius:22px;background:#00C853;color:white;font-weight:bold;cursor:pointer;margin:5px;">下一题 &gt;</button>' +
+        '</div>';
+
+    document.getElementById('gameContainer').appendChild(container);
+    renderProgress();
+    showQuestion(0);
+}
+
+function showQuestion(idx) {
+    if (idx >= currentItems.length) {
+        alert('太棒了！全部完成！');
+        return;
+    }
+    currentIdx = idx;
+    revealedCount = 0;
+
+    document.getElementById('questionNum').innerHTML = '第 ' + (idx + 1) + ' 题 / 共 ' + currentItems.length + ' 题';
+    updateProgress();
+
+    var charArea = document.getElementById('charArea');
+    charArea.innerHTML = '';
+
+    var chars = currentItems[idx];
+    var len = chars.length;
+    
+    var tbl = document.createElement('table');
+    tbl.align = 'center';
+    tbl.cellSpacing = '8';
+    var row = tbl.insertRow(0);
+
+    for (var i = 0; i < len; i++) {
+        var cell = row.insertCell(i);
+        cell.style.cssText = 'width:90px;height:110px;position:relative;text-align:center;';
+        
+        var charEl = document.createElement('span');
+        charEl.id = 'char_' + idx + '_' + i;
+        charEl.style.cssText = 'font-size:56px;font-weight:bold;color:#333;display:inline-block;line-height:110px;';
+        charEl.innerHTML = chars[i];
+
+        var grid = document.createElement('span');
+        grid.id = 'grid_' + idx + '_' + i;
+        grid.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:#FFD700;border-radius:10px;cursor:pointer;z-index:2;font-size:40px;color:rgba(255,255,255,0.6);line-height:110px;border:2px solid #E69400;display:inline-block;';
+        grid.innerHTML = '?';
+
+        cell.appendChild(charEl);
+        cell.appendChild(grid);
+
+        grid.onclick = (function(gId, chId, totalLen) {
+            return function() {
+                var g = document.getElementById(gId);
+                if (g && g.style.display !== 'none') {
+                    g.style.display = 'none';
+                    revealedCount++;
+                    if (revealedCount === totalLen) {
+                        document.getElementById(chId).style.color = '#4CAF50';
+                    }
+                }
+            };
+        })('grid_' + idx + '_' + i, 'char_' + idx + '_' + i, len);
+    }
+
+    charArea.appendChild(tbl);
+}
+
+function nextQ() {
+    if (currentIdx < currentItems.length - 1) {
+        showQuestion(currentIdx + 1);
+    } else {
+        alert('太棒了！全部完成！');
+    }
+}
+
+function prevQ() {
+    if (currentIdx > 0) {
+        showQuestion(currentIdx - 1);
+    }
+}
+
+function renderProgress() {
+    var prog = document.getElementById('progress');
+    prog.innerHTML = '';
+    var html = '<table align="center"><tr>';
+    for (var i = 0; i < currentItems.length; i++) {
+        html += '<td><span id="dot_' + i + '" style="display:inline-block;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.35);cursor:pointer;" onclick="showQuestion(' + i + ')">&nbsp;</span></td>';
+    }
+    html += '</tr></table>';
+    prog.innerHTML = html;
+}
+
+function updateProgress() {
+    for (var i = 0; i < currentItems.length; i++) {
+        var dot = document.getElementById('dot_' + i);
+        if (!dot) continue;
+        if (i < currentIdx) {
+            dot.style.background = '#4CAF50';
+        } else if (i === currentIdx) {
+            dot.style.background = '#ffffff';
+        } else {
+            dot.style.background = 'rgba(255,255,255,0.35)';
+        }
+    }
+}
+
+window.onload = function() {
+    switchGame('idiom4');
+};
+</script>
+
+</body>
+</html>
